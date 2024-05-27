@@ -68,6 +68,21 @@ mod test {
 
         let matches = compare_scalar(&arr, Operator::NotEqualTo, &false.into())?.flatten_bool()?;
         assert_eq!(to_int_indices(matches), [1u64, 3]);
+
+        let matches = compare_scalar(&arr, Operator::GreaterThan, &false.into())?.flatten_bool()?;
+        assert_eq!(to_int_indices(matches), [1u64, 3]);
+
+        let matches =
+            compare_scalar(&arr, Operator::GreaterThanOrEqualTo, &false.into())?.flatten_bool()?;
+        assert_eq!(to_int_indices(matches), [1u64, 2, 3]);
+
+        let matches = compare_scalar(&arr, Operator::LessThan, &false.into())?.flatten_bool()?;
+        let empty: [u64; 0] = [];
+        assert_eq!(to_int_indices(matches), empty);
+
+        let matches =
+            compare_scalar(&arr, Operator::LessThanOrEqualTo, &false.into())?.flatten_bool()?;
+        assert_eq!(to_int_indices(matches), [2u64]);
         Ok(())
     }
 }
