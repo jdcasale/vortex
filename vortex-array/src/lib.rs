@@ -150,7 +150,17 @@ impl Array {
                     vortex_bail!("Query not compatible with dtype")
                 }
             }
-            _ => Ok(self),
+            DType::List(..) => {
+                // TODO(@jcasale): resolve list fields in a follow-on
+                vortex_bail!(NotImplemented: "Resolving list fields not yet implemented", self.dtype())
+            }
+            _ => {
+                if path.head().is_none() {
+                    Ok(self)
+                } else {
+                    vortex_bail!("Invalid path for non-nested array")
+                }
+            }
         }
     }
 }
