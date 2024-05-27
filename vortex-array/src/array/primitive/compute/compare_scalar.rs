@@ -29,13 +29,12 @@ impl CompareScalarFn for PrimitiveArray {
             apply_predicate(self.typed_data::<$T>(), &rhs, predicate_fn)
         });
 
-        let present = self
-            .validity()
-            .to_logical(self.len())
-            .to_present_null_buffer()?
-            .into_inner();
+        let present = self.validity().to_logical(self.len()).to_null_buffer()?;
+        let with_validity_applied = present
+            .map(|p| matching_idxs.bitand(&p.into_inner()))
+            .unwrap_or(matching_idxs);
 
-        Ok(BoolArray::from(matching_idxs.bitand(&present)).into_array())
+        Ok(BoolArray::from(with_validity_applied).into_array())
     }
 }
 

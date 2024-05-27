@@ -28,13 +28,12 @@ impl CompareScalarFn for BoolArray {
         let rhs = rhs.finish();
         let comparison_result = apply_comparison_op(lhs, rhs, op);
 
-        let present = self
-            .validity()
-            .to_logical(self.len())
-            .to_present_null_buffer()?
-            .into_inner();
+        let present = self.validity().to_logical(self.len()).to_null_buffer()?;
+        let with_validity_applied = present
+            .map(|p| comparison_result.bitand(&p.into_inner()))
+            .unwrap_or(comparison_result);
 
-        Ok(BoolArray::from(comparison_result.bitand(&present)).into_array())
+        Ok(BoolArray::from(with_validity_applied).into_array())
     }
 }
 

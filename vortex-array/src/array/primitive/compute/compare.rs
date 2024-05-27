@@ -22,18 +22,21 @@ impl CompareFn for PrimitiveArray {
             apply_predicate(self.typed_data::<$T>(), flattened.typed_data::<$T>(), predicate_fn)
         });
 
-        let present = self
-            .validity()
-            .to_logical(self.len())
-            .to_present_null_buffer()?
-            .into_inner();
+        let present = self.validity().to_logical(self.len()).to_null_buffer()?;
+        let with_validity_applied = present
+            .map(|p| matching_idxs.bitand(&p.into_inner()))
+            .unwrap_or(matching_idxs);
+
         let present_other = flattened
             .validity()
             .to_logical(self.len())
-            .to_present_null_buffer()?
-            .into_inner();
+            .to_null_buffer()?;
 
-        Ok(BoolArray::from(matching_idxs.bitand(&present).bitand(&present_other)).into_array())
+        let with_other_validity_applied = present_other
+            .map(|p| with_validity_applied.bitand(&p.into_inner()))
+            .unwrap_or(with_validity_applied);
+
+        Ok(BoolArray::from(with_other_validity_applied).into_array())
     }
 }
 
