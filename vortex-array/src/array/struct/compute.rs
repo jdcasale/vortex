@@ -7,9 +7,7 @@ use arrow_array::{
 use arrow_buffer::BooleanBuffer;
 use arrow_schema::{Field, Fields};
 use itertools::Itertools;
-use vortex_dtype::field_paths::{FieldIdentifier, FieldPath};
-use vortex_dtype::DType;
-use vortex_error::{vortex_bail, vortex_err, VortexResult};
+use vortex_error::VortexResult;
 use vortex_expr::expressions::{Conjunction, Disjunction, Predicate, Value};
 use vortex_scalar::Scalar;
 
@@ -179,11 +177,17 @@ impl FilterIndicesFn for StructArray {
 }
 
 fn indices_matching_predicate(arr: &StructArray, pred: &Predicate) -> VortexResult<BooleanBuffer> {
-    let inner = resolve_field(arr.clone().into_array(), arr.dtype(), &pred.left)?;
+    let inner = arr
+        .clone()
+        .into_array()
+        .resolve_field(arr.dtype(), &pred.left)?;
 
     match &pred.right {
         Value::Field(rh_field) => {
-            let rhs = resolve_field(arr.clone().into_array(), arr.dtype(), rh_field)?;
+            let rhs = arr
+                .clone()
+                .into_array()
+                .resolve_field(arr.dtype(), rh_field)?;
             Ok(compare(&inner, &rhs, pred.op)?
                 .flatten_bool()?
                 .boolean_buffer())
@@ -200,34 +204,11 @@ fn indices_matching_predicate(arr: &StructArray, pred: &Predicate) -> VortexResu
     }
 }
 
-fn resolve_field(array: Array, dtype: &DType, path: &FieldPath) -> VortexResult<Array> {
-    match dtype {
-        DType::Struct(struct_dtype, _) => {
-            let current = path.head().ok_or_else(|| vortex_err!("<FILL IN>"))?;
-            if let FieldIdentifier::Name(field_name) = current {
-                let idx = struct_dtype
-                    .find_name(field_name.as_str())
-                    .ok_or_else(|| vortex_err!("Query not compatible with dtype"))?;
-                let inner_dtype = struct_dtype.dtypes().get(idx).unwrap();
-                let inner_name = path.tail().ok_or_else(|| vortex_err!("<FILL IN>"))?;
-                resolve_field(
-                    array.child(idx, inner_dtype).unwrap(),
-                    inner_dtype,
-                    &inner_name,
-                )
-            } else {
-                vortex_bail!("Query not compatible with dtype")
-            }
-        }
-        _ => Ok(array),
-    }
-}
-
 #[cfg(test)]
 mod test {
     use itertools::Itertools;
-    use vortex_dtype::field_paths::field;
-    use vortex_dtype::{Nullability, PType, StructDType};
+    use vortex_dtype::field_paths::{field, FieldPath};
+    use vortex_dtype::{DType, Nullability, PType, StructDType};
     use vortex_expr::expressions::Value::Field;
     use vortex_expr::operators::Operator;
 
@@ -291,39 +272,47 @@ mod test {
             StatsSet::new(),
         )?;
 
-        fn comparison(op: Operator) -> Disjunction {
-            Disjunction {
-                conjunctions: vec![Conjunction {
-                    predicates: vec![Predicate {
-                        left: field("field_a"),
-                        op,
-                        right: Field(field("field_b")),
-                    }],
-                }],
-            }
-        }
-
-        let matches = FilterIndicesFn::filter_indices(&structs, &comparison(Operator::EqualTo))?
-            .flatten_bool()?;
+        let matches = FilterIndicesFn::filter_indices(
+            &structs,
+            &comparison(Operator::EqualTo, field("field_a"), field("field_b")),
+        )?
+        .flatten_bool()?;
         assert_eq!(to_int_indices(matches), [0]);
 
-        let matches = FilterIndicesFn::filter_indices(&structs, &comparison(Operator::LessThan))?
-            .flatten_bool()?;
+        let matches = FilterIndicesFn::filter_indices(
+            &structs,
+            &comparison(Operator::LessThan, field("field_a"), field("field_b")),
+        )?
+        .flatten_bool()?;
         assert_eq!(to_int_indices(matches), [1, 3]);
 
-        let matches =
-            FilterIndicesFn::filter_indices(&structs, &comparison(Operator::LessThanOrEqualTo))?
-                .flatten_bool()?;
+        let matches = FilterIndicesFn::filter_indices(
+            &structs,
+            &comparison(
+                Operator::LessThanOrEqualTo,
+                field("field_a"),
+                field("field_b"),
+            ),
+        )?
+        .flatten_bool()?;
         assert_eq!(to_int_indices(matches), [0, 1, 3]);
 
-        let matches =
-            FilterIndicesFn::filter_indices(&structs, &comparison(Operator::GreaterThan))?
-                .flatten_bool()?;
+        let matches = FilterIndicesFn::filter_indices(
+            &structs,
+            &comparison(Operator::GreaterThan, field("field_a"), field("field_b")),
+        )?
+        .flatten_bool()?;
         assert_eq!(to_int_indices(matches), [4]);
 
-        let matches =
-            FilterIndicesFn::filter_indices(&structs, &comparison(Operator::GreaterThanOrEqualTo))?
-                .flatten_bool()?;
+        let matches = FilterIndicesFn::filter_indices(
+            &structs,
+            &comparison(
+                Operator::GreaterThanOrEqualTo,
+                field("field_a"),
+                field("field_b"),
+            ),
+        )?
+        .flatten_bool()?;
         assert_eq!(to_int_indices(matches), [0, 4]);
         Ok(())
     }
