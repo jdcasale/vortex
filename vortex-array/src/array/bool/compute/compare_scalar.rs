@@ -26,7 +26,7 @@ impl CompareScalarFn for BoolArray {
         let mut rhs = BooleanBufferBuilder::new(self.len());
         rhs.append_n(self.len(), scalar_val);
         let rhs = rhs.finish();
-        let result_buf = apply_comparison_op(lhs, rhs, op);
+        let comparison_result = apply_comparison_op(lhs, rhs, op);
 
         let present = self
             .validity()
@@ -34,7 +34,7 @@ impl CompareScalarFn for BoolArray {
             .to_present_null_buffer()?
             .into_inner();
 
-        Ok(BoolArray::from(result_buf.bitand(&present)).into_array())
+        Ok(BoolArray::from(comparison_result.bitand(&present)).into_array())
     }
 }
 

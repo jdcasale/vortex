@@ -15,14 +15,14 @@ impl CompareFn for BoolArray {
             .map_err(|_| vortex_err!("Cannot compare boolean array with non-boolean array"))?;
         let lhs = self.boolean_buffer();
         let rhs = flattened.boolean_buffer();
-        let result_buf = apply_comparison_op(lhs, rhs, op);
+        let comparison_result = apply_comparison_op(lhs, rhs, op);
 
         Ok(BoolArray::from(
             self.validity()
                 .to_logical(self.len())
                 .to_null_buffer()?
-                .map(|nulls| result_buf.bitand(&nulls.into_inner()))
-                .unwrap_or(result_buf),
+                .map(|nulls| comparison_result.bitand(&nulls.into_inner()))
+                .unwrap_or(comparison_result),
         )
         .into_array())
     }
