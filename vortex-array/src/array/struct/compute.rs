@@ -209,8 +209,7 @@ mod test {
     use itertools::Itertools;
     use vortex_dtype::field_paths::{field, FieldPath};
     use vortex_dtype::{DType, Nullability, PType, StructDType};
-    use vortex_expr::expressions::Value::Field;
-    use vortex_expr::operators::Operator;
+    use vortex_expr::operators::{field_comparison, Operator};
 
     use super::*;
     use crate::array::primitive::PrimitiveArray;
@@ -229,16 +228,8 @@ mod test {
         filtered
     }
 
-    fn comparison(op: Operator, left: FieldPath, right: FieldPath) -> Disjunction {
-        Disjunction {
-            conjunctions: vec![Conjunction {
-                predicates: vec![Predicate {
-                    left,
-                    op,
-                    right: Field(right),
-                }],
-            }],
-        }
+    fn comparison(op: Operator) -> Disjunction {
+        field_comparison(op, field("field_a"), field("field_b"))
     }
 
     #[test]
@@ -272,47 +263,27 @@ mod test {
             StatsSet::new(),
         )?;
 
-        let matches = FilterIndicesFn::filter_indices(
-            &structs,
-            &comparison(Operator::EqualTo, field("field_a"), field("field_b")),
-        )?
-        .flatten_bool()?;
+        let matches = FilterIndicesFn::filter_indices(&structs, &comparison(Operator::EqualTo))?
+            .flatten_bool()?;
         assert_eq!(to_int_indices(matches), [0]);
 
-        let matches = FilterIndicesFn::filter_indices(
-            &structs,
-            &comparison(Operator::LessThan, field("field_a"), field("field_b")),
-        )?
-        .flatten_bool()?;
+        let matches = FilterIndicesFn::filter_indices(&structs, &comparison(Operator::LessThan))?
+            .flatten_bool()?;
         assert_eq!(to_int_indices(matches), [1, 3]);
 
-        let matches = FilterIndicesFn::filter_indices(
-            &structs,
-            &comparison(
-                Operator::LessThanOrEqualTo,
-                field("field_a"),
-                field("field_b"),
-            ),
-        )?
-        .flatten_bool()?;
+        let matches =
+            FilterIndicesFn::filter_indices(&structs, &comparison(Operator::LessThanOrEqualTo))?
+                .flatten_bool()?;
         assert_eq!(to_int_indices(matches), [0, 1, 3]);
 
-        let matches = FilterIndicesFn::filter_indices(
-            &structs,
-            &comparison(Operator::GreaterThan, field("field_a"), field("field_b")),
-        )?
-        .flatten_bool()?;
+        let matches =
+            FilterIndicesFn::filter_indices(&structs, &comparison(Operator::GreaterThan))?
+                .flatten_bool()?;
         assert_eq!(to_int_indices(matches), [4]);
 
-        let matches = FilterIndicesFn::filter_indices(
-            &structs,
-            &comparison(
-                Operator::GreaterThanOrEqualTo,
-                field("field_a"),
-                field("field_b"),
-            ),
-        )?
-        .flatten_bool()?;
+        let matches =
+            FilterIndicesFn::filter_indices(&structs, &comparison(Operator::GreaterThanOrEqualTo))?
+                .flatten_bool()?;
         assert_eq!(to_int_indices(matches), [0, 4]);
         Ok(())
     }
@@ -382,7 +353,7 @@ mod test {
         let mixed_level_cmp = |op: Operator| -> VortexResult<BoolArray> {
             FilterIndicesFn::filter_indices(
                 top_level_structs,
-                &comparison(
+                &field_comparison(
                     op,
                     FieldPath::builder().join("struct").join("field_a").build(),
                     field("flat"),
@@ -411,7 +382,7 @@ mod test {
         let nested_cmp = |op: Operator| -> VortexResult<BoolArray> {
             FilterIndicesFn::filter_indices(
                 top_level_structs,
-                &comparison(
+                &field_comparison(
                     op,
                     FieldPath::builder().join("struct").join("field_a").build(),
                     FieldPath::builder().join("struct").join("field_b").build(),

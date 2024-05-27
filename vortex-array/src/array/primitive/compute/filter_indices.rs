@@ -63,10 +63,9 @@ mod test {
 
     use itertools::Itertools;
     use vortex_dtype::field_paths::{field, FieldPathBuilder};
-    use vortex_expr::expressions::Value::Field;
     use vortex_expr::expressions::{lit, Conjunction};
     use vortex_expr::field_paths::FieldPathOperations;
-    use vortex_expr::operators::Operator;
+    use vortex_expr::operators::{field_comparison, Operator};
 
     use super::*;
     use crate::array::r#struct::StructArray;
@@ -253,15 +252,7 @@ mod test {
         )?;
 
         fn comparison(op: Operator) -> Disjunction {
-            Disjunction {
-                conjunctions: vec![Conjunction {
-                    predicates: vec![Predicate {
-                        left: field("field_a"),
-                        op,
-                        right: Field(field("field_b")),
-                    }],
-                }],
-            }
+            field_comparison(op, field("field_a"), field("field_b"))
         }
 
         let matches = FilterIndicesFn::filter_indices(&structs, &comparison(Operator::EqualTo))?
