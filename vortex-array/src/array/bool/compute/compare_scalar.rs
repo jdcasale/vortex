@@ -1,4 +1,4 @@
-use std::ops::{BitAnd, BitOr, BitXor, Not};
+use std::ops::BitAnd;
 
 use arrow_buffer::BooleanBufferBuilder;
 use vortex_dtype::DType;
@@ -6,20 +6,18 @@ use vortex_error::{vortex_bail, vortex_err, VortexResult};
 use vortex_expr::operators::Operator;
 use vortex_scalar::Scalar;
 
-use crate::array::bool::BoolArray;
+use crate::array::bool::{apply_comparison_op, BoolArray};
 use crate::compute::compare_scalar::CompareScalarFn;
 use crate::{Array, ArrayTrait, IntoArray};
 
 impl CompareScalarFn for BoolArray {
     fn compare_scalar(&self, op: Operator, scalar: &Scalar) -> VortexResult<Array> {
-        match scalar.dtype() {
-            DType::Bool(_) => {}
-            _ => {
-                vortex_bail!("Invalid dtype for boolean scalar comparison")
-            }
+        if let DType::Bool(_) = scalar.dtype() {
+        } else {
+            vortex_bail!("Invalid dtype for boolean scalar comparison")
         }
-        let lhs = self.boolean_buffer();
 
+        let lhs = self.boolean_buffer();
         let scalar_val = scalar
             .value()
             .as_bool()?
@@ -28,14 +26,7 @@ impl CompareScalarFn for BoolArray {
         let mut rhs = BooleanBufferBuilder::new(self.len());
         rhs.append_n(self.len(), scalar_val);
         let rhs = rhs.finish();
-        let result_buf = match op {
-            Operator::EqualTo => lhs.bitxor(&rhs).not(),
-            Operator::NotEqualTo => lhs.bitxor(&rhs),
-            Operator::GreaterThan => lhs.bitand(&rhs.not()),
-            Operator::GreaterThanOrEqualTo => lhs.bitor(&rhs.not()),
-            Operator::LessThan => lhs.not().bitand(&rhs),
-            Operator::LessThanOrEqualTo => lhs.not().bitor(&rhs),
-        };
+        let result_buf = apply_comparison_op(lhs, rhs, op);
 
         let present = self
             .validity()

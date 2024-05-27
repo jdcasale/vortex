@@ -1,9 +1,9 @@
-use std::ops::{BitAnd, BitOr, BitXor, Not};
+use std::ops::BitAnd;
 
 use vortex_error::{vortex_err, VortexResult};
 use vortex_expr::operators::Operator;
 
-use crate::array::bool::BoolArray;
+use crate::array::bool::{apply_comparison_op, BoolArray};
 use crate::compute::compare::CompareFn;
 use crate::{Array, ArrayTrait, IntoArray};
 
@@ -15,15 +15,8 @@ impl CompareFn for BoolArray {
             .map_err(|_| vortex_err!("Cannot compare boolean array with non-boolean array"))?;
         let lhs = self.boolean_buffer();
         let rhs = flattened.boolean_buffer();
-        let result_buf = match op {
-            Operator::EqualTo => lhs.bitxor(&rhs).not(),
-            Operator::NotEqualTo => lhs.bitxor(&rhs),
+        let result_buf = apply_comparison_op(lhs, rhs, op);
 
-            Operator::GreaterThan => lhs.bitand(&rhs.not()),
-            Operator::GreaterThanOrEqualTo => lhs.bitor(&rhs.not()),
-            Operator::LessThan => lhs.not().bitand(&rhs),
-            Operator::LessThanOrEqualTo => lhs.not().bitor(&rhs),
-        };
         Ok(BoolArray::from(
             self.validity()
                 .to_logical(self.len())
